@@ -1,5 +1,5 @@
 # 🧠 LSTM-Based Text Prediction System
-### Lab Assignment 5 — Group Assignment
+### Lab Assignment 5
 
 ---
 
@@ -117,7 +117,7 @@ You should see:
 ```
 INFO:     Uvicorn running on http://0.0.0.0:8000
 INFO:     Application startup complete.
-✅ Model loaded  | vocab=XXXX | seq_len=10
+ Model loaded  | vocab=XXXX | seq_len=10
 ```
 
 **Test it in browser:** http://localhost:8000/docs
@@ -189,7 +189,7 @@ curl -X POST http://localhost:5678/webhook/lstm-predict \
 
 ---
 
-## 🔄 n8n Workflow Architecture
+## n8n Workflow Architecture
 
 ```
 [User / Postman]
@@ -211,48 +211,14 @@ curl -X POST http://localhost:5678/webhook/lstm-predict \
 ```
 
 ---
-
-## 📐 LSTM Math (For Viva)
-
-| Gate | Formula | Purpose |
-|------|---------|---------|
-| Forget | $f_t = \sigma(W_f[h_{t-1}, x_t] + b_f)$ | What to erase from memory |
-| Input  | $i_t = \sigma(W_i[h_{t-1}, x_t] + b_i)$ | What new info to write |
-| Cell   | $c_t = f_t \odot c_{t-1} + i_t \odot \tilde{c}_t$ | Updated long-term memory |
-| Output | $o_t = \sigma(W_o[h_{t-1}, x_t] + b_o)$; $h_t = o_t \odot \tanh(c_t)$ | What to expose |
-
----
-
-## 📊 Grading Checklist
-
-| Criterion | Marks | Status |
-|-----------|-------|--------|
-| Problem Understanding & Dataset | 3 | ✅ Wikipedia API, declared |
-| Data Preprocessing | 3 | ✅ Clean, tokenize, sliding window |
-| LSTM Model Implementation | 4 | ✅ 2-layer LSTM + math equations |
-| Prediction Output | 2 | ✅ Cell 11 shows test outputs |
-| Deployment (n8n) | 6 | ✅ FastAPI + n8n workflow |
-| GitHub & Documentation | 2 | ✅ README + comments |
-| **Total** | **20** | ✅ |
-
----
-
 ## 👥 Group Members
 
 | Name | Contribution |
 |------|-------------|
-| Member 1 | Dataset collection, preprocessing (Cells 3–6) |
-| Member 2 | LSTM model design & training (Cells 7–9) |
-| Member 3 | Prediction functions, testing (Cells 10–11) |
-| Member 4 | FastAPI server + n8n deployment |
+| Member 1 Preeti Koli | Dataset collection, preprocessing (Cells 3–6) |
+| Member 2 Sakshi Bhingarkar | LSTM model design & training (Cells 7–9) |
+| Member 3 Vaishnavi Thorave | Prediction functions, testing (Cells 10–11) |
+| Member 4 Kulshree Nakshane | FastAPI server + n8n deployment |
 
 ---
 
-## 🤖 AI Acknowledgement
-
-Generative AI tools (Claude) were used for:
-- Code scaffolding and structure
-- Documentation writing
-- README generation
-
-All model logic, design decisions, and understanding are the group's own.
