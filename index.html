@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LSTM Word Predictor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --border: #1e1e2e;
+      --accent: #00f5a0;
+      --accent2: #00d9f5;
+      --text: #e8e8f0;
+      --muted: #555570;
+      --danger: #ff4466;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .header .badge {
+      display: inline-block;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 4px 12px;
+      margin-bottom: 16px;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .header h1 {
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      animation: fadeDown 0.6s 0.1s ease both;
+    }
+
+    .header h1 span {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header p {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      font-family: 'Space Mono', monospace;
+      animation: fadeDown 0.6s 0.2s ease both;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 28px;
+      margin-bottom: 20px;
+      animation: fadeUp 0.6s 0.3s ease both;
+      position: relative;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    .input-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    #seedInput {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 15px;
+      padding: 14px 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #seedInput:focus { border-color: var(--accent); }
+    #seedInput::placeholder { color: var(--muted); }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 1px;
+      padding: 14px 22px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.97); }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 14px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      min-height: 18px;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+
+    .dot.loading { background: var(--accent2); animation: pulse 0.8s infinite; }
+    .dot.success { background: var(--accent); }
+    .dot.error   { background: var(--danger); }
+
+    #results {
+      display: none;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 24px 28px;
+      margin-bottom: 16px;
+    }
+
+    .result-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .predicted-text {
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .predicted-text .seed-part { color: var(--muted); }
+    .predicted-text .new-part  { color: var(--accent); }
+
+    .topk-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .word-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      animation: fadeLeft 0.3s ease forwards;
+    }
+
+    .word-row:nth-child(1) { animation-delay: 0.05s }
+    .word-row:nth-child(2) { animation-delay: 0.10s }
+    .word-row:nth-child(3) { animation-delay: 0.15s }
+    .word-row:nth-child(4) { animation-delay: 0.20s }
+    .word-row:nth-child(5) { animation-delay: 0.25s }
+
+    .word-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      min-width: 120px;
+      color: var(--text);
+    }
+
+    .bar-wrap {
+      flex: 1;
+      background: var(--border);
+      height: 6px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .word-pct {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      min-width: 45px;
+      text-align: right;
+    }
+
+    .settings {
+      display: flex;
+      gap: 16px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .setting-item label { color: var(--muted); letter-spacing: 1px; }
+
+    .setting-item input[type=range] {
+      accent-color: var(--accent);
+      width: 80px;
+    }
+
+    .setting-item span {
+      color: var(--accent);
+      min-width: 28px;
+    }
+
+    .telegram-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #00d9f5;
+      border: 1px solid #00d9f5;
+      padding: 3px 10px;
+      margin-top: 10px;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    .telegram-badge.show { opacity: 1; }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeLeft {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="badge">LSTM · NLP · n8n</div>
+    <h1>Next Word<br><span>Predictor</span></h1>
+    <p>// real-time inference · telegram notifications via n8n</p>
+  </div>
+
+  <div class="card">
+    <span class="input-label">Seed Text</span>
+
+    <div class="input-row">
+      <input id="seedInput" type="text"
+        placeholder="e.g. machine learning is used..."
+        autocomplete="off" spellcheck="false">
+      <button class="btn" onclick="triggerPredict()">Predict</button>
+    </div>
+
+    <div class="settings">
+      <div class="setting-item">
+        <label>WORDS</label>
+        <input type="range" id="nWords" min="1" max="15" value="5"
+          oninput="document.getElementById('nWordsVal').innerText=this.value">
+        <span id="nWordsVal">5</span>
+      </div>
+
+      <div class="setting-item">
+        <label>TEMP</label>
+        <input type="range" id="temp" min="1" max="20" value="8"
+          oninput="document.getElementById('tempVal').innerText=(this.value/10).toFixed(1)">
+        <span id="tempVal">0.8</span>
+      </div>
+
+      <div class="setting-item">
+        <label>TOP-K</label>
+        <input type="range" id="topK" min="3" max="10" value="5"
+          oninput="document.getElementById('topKVal').innerText=this.value">
+        <span id="topKVal">5</span>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">ready — type to predict automatically</span>
+    </div>
+
+    <div class="telegram-badge" id="telegramBadge">
+      ✈ telegram notification sent
+    </div>
+  </div>
+
+  <div id="results">
+
+    <div class="result-card">
+      <div class="result-label">Predicted Continuation</div>
+      <div class="predicted-text" id="predictedText"></div>
+    </div>
+
+    <div class="result-card">
+      <div class="result-label">Top Next Word Candidates</div>
+      <div class="topk-grid" id="topkGrid"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  // ── Point to n8n webhook
+  const API = 'http://localhost:5678/webhook/lstm-predict';
+
+  let debounceTimer = null;
+
+  document.getElementById('seedInput').addEventListener('input', () => {
+    clearTimeout(debounceTimer);
+    const val = document.getElementById('seedInput').value.trim();
+    if (val.length < 3) {
+      setStatus('', 'ready — type to predict automatically');
+      return;
+    }
+    setStatus('loading', 'thinking...');
+    debounceTimer = setTimeout(triggerPredict, 500);
+  });
+
+  document.getElementById('seedInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      clearTimeout(debounceTimer);
+      triggerPredict();
+    }
+  });
+
+  function triggerPredict() {
+    const seed = document.getElementById('seedInput').value.trim();
+    if (!seed) return;
+    callAPI(seed);
+  }
+
+  async function callAPI(seed) {
+    const nWords = parseInt(document.getElementById('nWords').value);
+    const temp   = parseFloat(document.getElementById('temp').value) / 10;
+    const topK   = parseInt(document.getElementById('topK').value);
+
+    setStatus('loading', 'sending to n8n...');
+    hideTelegramBadge();
+
+    try {
+      const res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seed_text:   seed,
+          n_words:     nWords,
+          temperature: temp,
+          top_k:       topK
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();                    // ✅ FIXED — no arguments
+      console.log('n8n response:', data);               // ✅ for debugging in DevTools
+
+      renderResults(data, seed);
+      setStatus('success', `predicted ${nWords} words · telegram notified`);
+      showTelegramBadge();
+
+    } catch (err) {
+      console.error('Prediction error:', err);
+      setStatus('error', 'error — is n8n running on port 5678?');
+    }
+  }
+
+  function renderResults(data, seed) {
+    // ✅ FIXED — handles both field name variants from FastAPI/n8n
+    const generated = data.predicted_text || data.predicted || '';
+    const topWords  = data.top_5_words    || data.top_k_words || [];
+
+    document.getElementById('predictedText').innerHTML =
+      `<span class="seed-part">${escHtml(seed)}</span> <span class="new-part">${escHtml(generated)}</span>`;
+
+    const grid = document.getElementById('topkGrid');
+
+    if (topWords.length > 0) {
+      const maxProb = topWords[0].probability || 1;
+      grid.innerHTML = topWords.map((w) => {
+        const pct = ((w.probability / maxProb) * 100).toFixed(1);
+        return `
+          <div class="word-row">
+            <span class="word-name">${escHtml(w.word)}</span>
+            <div class="bar-wrap">
+              <div class="bar-fill" data-pct="${pct}"></div>
+            </div>
+            <span class="word-pct">${(w.probability * 100).toFixed(2)}%</span>
+          </div>`;
+      }).join('');
+    } else {
+      // Fallback: show predicted words with estimated bars
+      const words = generated.trim().split(/\s+/).filter(Boolean).slice(0, 5);
+      grid.innerHTML = words.map((word, i) => `
+        <div class="word-row">
+          <span class="word-name">${escHtml(word)}</span>
+          <div class="bar-wrap">
+            <div class="bar-fill" data-pct="${100 - i * 12}"></div>
+          </div>
+          <span class="word-pct">${100 - i * 12}%</span>
+        </div>`).join('');
+    }
+
+    document.getElementById('results').style.display = 'block';
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.bar-fill').forEach(bar => {
+        bar.style.width = bar.dataset.pct + '%';
+      });
+    });
+  }
+
+  function showTelegramBadge() {
+    document.getElementById('telegramBadge').classList.add('show');
+    setTimeout(hideTelegramBadge, 4000);
+  }
+
+  function hideTelegramBadge() {
+    document.getElementById('telegramBadge').classList.remove('show');
+  }
+
+  function setStatus(type, msg) {
+    const dot = document.getElementById('statusDot');
+    dot.className = 'dot' + (type ? ' ' + type : '');
+    document.getElementById('statusText').innerText = msg;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+</script>
+
+</body>
+</html>

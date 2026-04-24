@@ -1,0 +1,10 @@
+# LSTM Text Prediction — Dependencies
+# Install with: pip install -r requirements.txt
+tensorflow==2.21.0
+numpy
+scikit-learn
+matplotlib
+wikipedia
+fastapi
+uvicorn[standard]
+pydantic

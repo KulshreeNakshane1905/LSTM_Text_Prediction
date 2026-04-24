@@ -1,0 +1,124 @@
+{
+  "name": "LSTM Text Prediction Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lstm-predict",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook (Entry Point)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "lstm-predict-webhook",
+      "notes": "Step 1: Receives POST request from user/client.\nExpected body: { \"seed_text\": \"your input here\", \"n_words\": 5 }"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/predict",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "seed_text",
+              "value": "={{ $json.body.seed_text }}"
+            },
+            {
+              "name": "n_words",
+              "value": "={{ $json.body.n_words || 5 }}"
+            },
+            {
+              "name": "top_k",
+              "value": "={{ $json.body.top_k || 5 }}"
+            },
+            {
+              "name": "temperature",
+              "value": "={{ $json.body.temperature || 0.8 }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-request-node",
+      "name": "HTTP Request → FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "notes": "Step 2: Forwards request to your FastAPI server running on localhost:8000.\nThe LSTM model generates the prediction here."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 3: Format the response before sending back\nconst apiResponse = $input.item.json;\n\nreturn {\n  json: {\n    status: 'success',\n    input: apiResponse.seed_text,\n    predicted_text: apiResponse.predicted,\n    top_5_words: apiResponse.top_k_words,\n    model_info: apiResponse.model_info,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "code-node",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "notes": "Step 3: Formats the API response into clean JSON."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "respond-node",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "notes": "Step 4: Sends the final JSON prediction back to the caller."
+    }
+  ],
+  "connections": {
+    "Webhook (Entry Point)": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request → FastAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request → FastAPI": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "description": "LSTM AI Agent: Webhook → HTTP Request (FastAPI LSTM server) → Format → Respond",
+    "version": "1.0"
+  }
+}
